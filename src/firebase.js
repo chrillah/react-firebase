@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app'
 import { getDatabase } from 'firebase/database'
 
+import { getStorage } from "firebase/storage"
+
 const firebaseConfig = {
     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -13,3 +15,4 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const db = getDatabase(app)
+export const storage = getStorage(app)

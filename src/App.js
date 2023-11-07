@@ -1,7 +1,20 @@
 import './App.css'
-import { db } from './firebase'
-import { set, ref, onValue, remove, update } from 'firebase/database'
+import { db, storage } from './firebase'
+import {
+    set,
+    ref as ref_database,
+    onValue,
+    remove,
+    update
+} from 'firebase/database'
+import {
+    ref as ref_storage,
+    uploadBytes,
+    listAll,
+    getDownloadURL
+} from 'firebase/storage'
 import { uid } from 'uid'
+import { v4 } from 'uuid'
 import { useState, useEffect } from 'react'
 
 function App() {
@@ -9,6 +22,10 @@ function App() {
     const [todos, setTodos] = useState([])
     const [isEdit, setIsEdit] = useState(false)
     const [tempUUid, setTempUuid] = useState('')
+
+    const [imageUpload, setImageUpload] = useState(null)
+    const [imageList, setImageList] = useState([])
+    const imageListRef = ref_storage(storage, 'images/')
 
     const handleTodoChange = (e) => {
         setTodo(e.target.value)
@@ -18,7 +35,7 @@ function App() {
     const writeToDatabase = () => {
         const uuid = uid()
         console.log(db)
-        set(ref(db, `/${uuid}`), {
+        set(ref_database(db, `/${uuid}`), {
             todo,
             uuid
         })
@@ -28,7 +45,7 @@ function App() {
 
     // read
     useEffect(() => {
-        onValue(ref(db), (snapshot) => {
+        onValue(ref_database(db), (snapshot) => {
             setTodos([])
             const data = snapshot.val()
             if (data !== null) {
@@ -38,6 +55,7 @@ function App() {
             }
         })
     }, [])
+
     // update
     const handleUpdate = (todo) => {
         setIsEdit(true)
@@ -46,7 +64,7 @@ function App() {
     }
 
     const handleSubmitChange = () => {
-        update(ref(db, `/${tempUUid}`), {
+        update(ref_database(db, `/${tempUUid}`), {
             todo,
             uuid: tempUUid
         })
@@ -56,8 +74,38 @@ function App() {
 
     // delete
     const handleDelete = (todo) => {
-        remove(ref(db, `/${todo.uuid}`))
+        remove(ref_database(db, `/${todo.uuid}`))
     }
+
+    // upload shit
+    const uploadImage = () => {
+        if (imageUpload === null) {
+            return
+        } else {
+            const imageRef = ref_storage(
+                storage,
+                `images/${imageUpload.name + v4()}`
+            )
+            uploadBytes(imageRef, imageUpload).then((snapshot) => {
+                getDownloadURL(snapshot.ref).then((url) => {
+                    setImageList((prev) => [...prev, url])
+                })
+                alert('image uploaded')
+            })
+        }
+    }
+
+    useEffect(() => {
+        setImageList([]);
+        listAll(imageListRef).then((resp) => {
+            resp.items.forEach((item) => {
+                getDownloadURL(item).then((url) => {
+                    setImageList((prev) => [...prev, url])
+                })
+            })
+        })
+    }, [])
+
     return (
         <div className="App">
             <input type="text" value={todo} onChange={handleTodoChange} />
@@ -76,13 +124,28 @@ function App() {
             ) : (
                 <button onClick={writeToDatabase}>submit</button>
             )}
-            {todos.map((todo) => (
-                <>
+            {todos.map((todo, index) => (
+                <div key={index}>
                     <h1>{todo.todo}</h1>
                     <button onClick={() => handleUpdate(todo)}>update</button>
                     <button onClick={() => handleDelete(todo)}>delete</button>
-                </>
+                </div>
             ))}
+            <div className="upload-shit">
+                <input
+                    type="file"
+                    onChange={(event) => {
+                        setImageUpload(event.target.files[0])
+                    }}
+                />
+                <button onClick={uploadImage}>Upload</button>
+
+                <div className="list-container">
+                    {imageList.map((url, index) => (
+                        <img key={index} src={url} alt="bilder" />
+                    ))}
+                </div>
+            </div>
         </div>
     )
 }
